@@ -36,7 +36,13 @@ async function run() {
         const jobApplicationCollection = client.db('JobPortal').collection('job_application')
 
         app.get('/jobs', async (req, res) => {
-            const cursor = jobCollection.find()
+            const email = req.query.email;
+            let query;
+
+            if (email) {
+                query = { hr_email: email }
+            }
+            const cursor = jobCollection.find(query)
             const result = await cursor.toArray()
             res.send(result)
 
@@ -58,7 +64,7 @@ async function run() {
             const result = await jobApplicationCollection.find(filter).toArray()
 
             for (const item of result) {
-                
+
                 const query1 = { _id: new ObjectId(item.job_Id) }
                 const job = await jobCollection.findOne(query1)
                 if (job) {
@@ -72,10 +78,64 @@ async function run() {
             }
             res.send(result)
         })
+
+
+        app.get("/job-application/jobs/:job_id", async (req, res) => {
+            const jobId = req.params.job_id
+            const query = { job_Id: jobId }
+            const result = await jobApplicationCollection.find(query).toArray()
+            res.send(result)
+        })
+
+        app.post('/jobs', async (req, res) => {
+            const newJob = req.body
+            const result = await jobCollection.insertOne(newJob)
+            res.send(result)
+        })
+
+
+
         app.post('/job-application', async (req, res) => {
             const application = req.body
+            console.log(application);
             const result = await jobApplicationCollection.insertOne(application)
+
+            const id = application.job_Id
+            console.log(id);
+            const query = { _id: new ObjectId(id) }
+            const job = await jobCollection.findOne(query)
+            console.log(job);
+            let newCount = 0;
+            if (job.applicationCount) {
+                newCount = job.applicationCount + 1
+            } else {
+                newCount = 1;
+            }
+
+            const filter = { _id: new ObjectId(id) }
+            const updatedDoc = {
+                $set: {
+                    applicationCount: newCount
+                }
+            }
+
+            const updatedResult = await jobCollection.updateOne(filter, updatedDoc)
+
+
             res.send(result)
+        })
+
+        app.patch("/job-application/:id", async (req, res) => {
+            const id = req.params.id
+            const data = req.body;
+            const filter = { _id: new ObjectId(id) }
+            const updateDoc = {
+                $set: {
+                    status: data.status
+                }
+            }
+            const result = await jobApplicationCollection.updateOne(filter,updateDoc)
+            res.send(result )
         })
 
 
